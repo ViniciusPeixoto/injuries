@@ -9,18 +9,12 @@ class UploadResource:
     file_handler = FileHandler()
 
     def on_post(self, req: falcon.Request, resp: falcon.Response):
-        uploaded_file = req.stream
+        uploaded_file = req.get_media()
         if not uploaded_file:
             resp.body = json.dumps({"Erro": "Não há um documento JSON válido no corpo de requisição."})
             resp.status = falcon.HTTP_BAD_REQUEST
             return
-        files_data = (
-            uploaded_file
-            .read(req.content_length or 0)
-            .decode("utf-8")
-            .split("--X-INSOMNIA-BOUNDARY")
-            [1:-1]
-        )
+        files_data = (part.get_data().decode("utf-8") for part in uploaded_file)
         saved_files = []
         for raw_file in files_data:
             try:
