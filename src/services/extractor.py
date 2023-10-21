@@ -33,6 +33,24 @@ class FileHandler:
             except Exception as ex:
                 raise ex
 
+    def clear_files(self):
+        path = "files/"
+        try:
+            files = os.listdir(path)
+            for file in files:
+                file_path = os.path.join(path, file)
+                try:
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                except Exception as e:
+                    raise e("An error ocurred.")
+        except FileNotFoundError:
+            raise FileNotFoundError("Missing file.")
+        except PermissionError:
+            raise PermissionError("No permission to delete.")
+        except Exception as e:
+            raise e("An error ocurred.")
+
     def get_file(self, file_name: str):
         file_path = f"files/{file_name}"
         try:
