@@ -13,20 +13,42 @@ class ObservationResource:
     file_handler = FileHandler()
 
     def on_get(self, req: falcon.Request, resp: falcon.Response):
-        observation_names = [observation.name for observation in self.observations]
+        subject = req.get_param("subject")
+        column = req.get_param("column")
+        if not all((subject, column)):
+            resp.body = json.dumps({"Erro": "Não foi selecionado parâmetros a serem analisados."})
+            resp.status = falcon.HTTP_BAD_REQUEST
+            return
+        if not self.observations:
+            resp.body = json.dumps({"Erro": "Não há observações para serem analisadas."})
+            resp.status = falcon.HTTP_NOT_FOUND
+            return
         resp.body = json.dumps({
-            "Sucesso": f"Existem {len(self.observations)} experimentos prontos para análise.",
-            "Experimentos": observation_names
+            observation.name: {
+                "data": [list(pair) for pair in zip(observation.data.index.tolist(), getattr(observation, subject)[column].values.flatten().tolist())]
+             } for observation in self.observations
         })
+        resp.status = falcon.HTTP_OK
+        resp.content_type = falcon.MEDIA_JSON
+
+    def on_get_clear(self, req: falcon.Request, resp: falcon.Response):
+        try:
+            self.file_handler.clear_files()
+            self.observations.clear()
+        except Exception as e:
+            resp.body = json.dumps({"Erro": f"Erro ao tentar limpar os arquivos: {e}."})
+            resp.status = falcon.HTTP_INTERNAL_SERVER_ERROR
+            return
+        resp.body = json.dumps({"Sucesso": "Arquivos foram apagados com sucesso."})
         resp.status = falcon.HTTP_OK
 
     def on_post(self, req: falcon.Request, resp: falcon.Response):
-        body = req.stream.read(req.content_length or 0)
+        body = req.get_media()
         if not body:
             resp.body = json.dumps({"Erro": "Não há um documento JSON válido no corpo de requisição."})
             resp.status = falcon.HTTP_BAD_REQUEST
             return
-        body = json.loads(body.decode("utf-8"))
+        # body = json.loads(body.decode("utf-8"))
         if not body:
             resp.body = json.dumps({"Erro": "Não há um documento JSON válido no corpo de requisição."})
             resp.status = falcon.HTTP_BAD_REQUEST
