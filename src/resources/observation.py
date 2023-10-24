@@ -23,11 +23,15 @@ class ObservationResource:
             resp.body = json.dumps({"Erro": "Não há observações para serem analisadas."})
             resp.status = falcon.HTTP_NOT_FOUND
             return
-        resp.body = json.dumps({
-            observation.name: {
-                "data": [list(pair) for pair in zip(observation.data.index.tolist(), getattr(observation, subject)[column].values.flatten().tolist())]
-             } for observation in self.observations
-        })
+        body = {}
+        for observation in self.observations:
+            indexes = observation.angle.index.tolist()
+            values = getattr(observation, subject)[column].values.flatten().tolist()
+            body[observation.name] = {
+                "data": [list(pair) for pair in zip(indexes, values)],
+                "extra": {}
+             }
+        resp.body = json.dumps(body)
         resp.status = falcon.HTTP_OK
         resp.content_type = falcon.MEDIA_JSON
 
