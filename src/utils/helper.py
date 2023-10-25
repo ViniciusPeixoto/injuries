@@ -1,5 +1,5 @@
-from typing import Union
 from math import pi
+from typing import Union
 
 from pandas import DataFrame
 

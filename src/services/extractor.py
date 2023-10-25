@@ -1,13 +1,9 @@
-import re
 import os
+import re
 
 from pandas import DataFrame, read_csv
 
-from src.utils.data import (
-    FILENAME_PATTERN,
-    HEADER_SIZE,
-    ObservationType,
-)
+from src.utils.data import FILENAME_PATTERN, HEADER_SIZE, ObservationType
 from src.utils.factory import FileFactory
 
 
@@ -42,14 +38,14 @@ class FileHandler:
                 try:
                     if os.path.isfile(file_path):
                         os.remove(file_path)
-                except Exception as e:
-                    raise e("An error ocurred.")
+                except Exception as ex:
+                    raise ex("An error ocurred.")
         except FileNotFoundError:
             raise FileNotFoundError("Missing file.")
         except PermissionError:
             raise PermissionError("No permission to delete.")
-        except Exception as e:
-            raise e("An error ocurred.")
+        except Exception as ex:
+            raise ex("An error ocurred.")
 
     def get_file(self, file_name: str):
         file_path = f"files/{file_name}"
@@ -62,7 +58,11 @@ class FileHandler:
         return self.file_factory.build_file(file_path, file_data)
 
     def get_files(self):
-        return [file for file in os.listdir("files/") if os.path.isfile(os.path.join("files/", file))]
+        return [
+            file
+            for file in os.listdir("files/")
+            if os.path.isfile(os.path.join("files/", file))
+        ]
 
     def get_data(self, file_path: str) -> DataFrame:
         """
@@ -81,8 +81,8 @@ class File:
 
     def __init__(self, path: str, data: str) -> None:
         self.file_path = path
-        self.file_name = path.split('/')[-1].split('.')[0]
-        self.file_ext = path.split('.')[-1]
+        self.file_name = path.split("/")[-1].split(".")[0]
+        self.file_ext = path.split(".")[-1]
         self.file_data = data
 
         if "asa" in self.file_name:

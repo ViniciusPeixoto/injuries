@@ -1,11 +1,7 @@
 import pandas as pd
 
 from src.services.extractor import File
-from src.utils.data import (
-    MEASUREMENT_RATE,
-    MEASUREMENT_BINS,
-    columns
-)
+from src.utils.data import MEASUREMENT_BINS, MEASUREMENT_RATE, columns
 from src.utils.helper import angle_to_rad
 
 
@@ -19,8 +15,7 @@ class Observation:
     def __init__(self, file: File) -> None:
         self.name = file.file_name
         self.angle = (
-            file.file_handler
-            .get_data(file.file_path)[columns]
+            file.file_handler.get_data(file.file_path)[columns]
             .rolling(window=MEASUREMENT_BINS, center=True)
             .mean()
             .dropna()
@@ -51,10 +46,10 @@ class Observation:
 
 
 class Hanging(Observation):
-    def __init__(self, path: str) -> None:
-        super().__init__(path)
+    def __init__(self, file: File) -> None:
+        super().__init__(file)
 
 
 class Wing(Observation):
-    def __init__(self, path: str) -> None:
-        super().__init__(path)
+    def __init__(self, file: File) -> None:
+        super().__init__(file)

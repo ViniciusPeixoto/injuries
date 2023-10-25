@@ -3,8 +3,9 @@ from typing import List
 
 import falcon
 
+import src.exceptions.http_exceptions as exc
+from src.services.analyzer import Hanging, Observation, Wing
 from src.services.extractor import FileHandler
-from src.services.analyzer import Observation, Wing, Hanging
 from src.utils.data import ObservationType, units
 
 
@@ -13,27 +14,42 @@ class ObservationResource:
     file_handler = FileHandler()
 
     def on_get(self, req: falcon.Request, resp: falcon.Response):
+        if not self.observations:
+            raise exc.NotFound(description="Não há experimentos para serem analisados.")
+
         subject = req.get_param("subject")
         column = req.get_param("column")
         if not all((subject, column)):
-            resp.body = json.dumps({"Erro": "Não foi selecionado parâmetros a serem analisados."})
-            resp.status = falcon.HTTP_BAD_REQUEST
-            return
-        if not self.observations:
-            resp.body = json.dumps({"Erro": "Não há observações para serem analisadas."})
-            resp.status = falcon.HTTP_NOT_FOUND
-            return
+            raise exc.InvalidRequest(
+                description="Não foram selecionado parâmetros a serem analisados."
+            )
+
         body = {}
         for observation in self.observations:
             indexes = observation.angle.index.tolist()
-            df = getattr(observation, subject)[column]
+            try:
+                df = getattr(observation, subject)[column]
+            except ValueError:
+                raise exc.InvalidRequest(
+                    description=f"Experimento não possui parâmetro {subject}."
+                )
+            except KeyError:
+                raise exc.InternalError(
+                    title="Erro de Dataframe",
+                    description=f"Dataframe não possui coluna {column}.",
+                )
             frame_max = df.idxmax()
             val_max = df.loc[frame_max]
             body[observation.name] = {
-                "data": [list(pair) for pair in zip(indexes, df.values.flatten().tolist())],
-                "extra": {"val_max": f"{round(val_max, 2)} {units[subject]}", "frame": str(frame_max)}
-             }
-        resp.body = json.dumps(body)
+                "data": [
+                    list(pair) for pair in zip(indexes, df.values.flatten().tolist())
+                ],
+                "extra": {
+                    "val_max": f"{round(val_max, 2)} {units[subject]}",
+                    "frame": str(frame_max),
+                },
+            }
+        resp.text = json.dumps(body)
         resp.status = falcon.HTTP_OK
         resp.content_type = falcon.MEDIA_JSON
 
@@ -41,83 +57,66 @@ class ObservationResource:
         try:
             self.file_handler.clear_files()
             self.observations.clear()
-        except Exception as e:
-            resp.body = json.dumps({"Erro": f"Erro ao tentar limpar os arquivos: {e}."})
-            resp.status = falcon.HTTP_INTERNAL_SERVER_ERROR
-            return
-        resp.body = json.dumps({"Sucesso": "Arquivos foram apagados com sucesso."})
+        except Exception as ex:
+            raise exc.InternalError(
+                title="Erro de Arquivos",
+                description=f"Erro ao tentar limpar os arquivos: {ex.__str__()}.",
+            )
+        resp.text = json.dumps({"Sucesso": "Arquivos foram apagados com sucesso."})
         resp.status = falcon.HTTP_OK
 
     def on_post(self, req: falcon.Request, resp: falcon.Response):
         body = req.get_media()
         if not body:
-            resp.body = json.dumps({"Erro": "Não há um documento JSON válido no corpo de requisição."})
-            resp.status = falcon.HTTP_BAD_REQUEST
-            return
-        # body = json.loads(body.decode("utf-8"))
-        if not body:
-            resp.body = json.dumps({"Erro": "Não há um documento JSON válido no corpo de requisição."})
-            resp.status = falcon.HTTP_BAD_REQUEST
-            return
+            raise exc.InvalidRequest(
+                description="Não há um documento JSON válido no corpo de requisição."
+            )
 
         files = body.get("arquivos")
         if files is None:
-            resp.body = json.dumps({
-                "Erro": "A requisição está montada de forma incorreta.",
-                "Detalhes": "Faltando argumento `arquivos`, que deve ser uma lista de strings."
-            })
-            resp.status = falcon.HTTP_BAD_REQUEST
-            return
+            raise exc.InvalidRequest(
+                description="Faltando argumento `arquivos` na requisição, que deve ser uma lista de strings."
+            )
         elif (
             not isinstance(files, list)
             or len(files) == 0
             or not all(isinstance(file, str) for file in files)
         ):
-            resp.body = json.dumps({
-                "Erro": "A requisição está montada de forma incorreta.",
-                "Detalhes": "`arquivos` deve ser uma lista de strings"
-            })
-            resp.status = falcon.HTTP_BAD_REQUEST
-            return
+            raise exc.InvalidRequest(
+                description="`arquivos` deve ser uma lista de strings"
+            )
+
         for filename in files:
             try:
                 file = self.file_handler.get_file(filename)
             except FileNotFoundError:
-                self.observations.clear()
-                resp.body = json.dumps({
-                    "Erro": "O arquivo informado não existe, ou ainda não foi carregado.",
-                    "Arquivo": filename
-                })
-                resp.status = falcon.HTTP_NOT_FOUND
-                return
+                raise exc.NotFound(
+                    description=f"O arquivo {filename} não existe, ou ainda não foi carregado."
+                )
             except ValueError:
-                resp.body = json.dumps({
-                    "Erro": "O nome do arquivo não traz informações suficientes sobre o experimento.",
-                    "Detalhes": f"{filename} não possui `asa` nem `pendura`."
-                })
-                resp.status = falcon.HTTP_BAD_REQUEST
-                return
+                raise exc.FileNameError(
+                    description=f"O nome do arquivo não traz informações suficientes sobre o experimento. \
+                        {filename} não possui `asa` nem `pendura`."
+                )
             if file.file_type == ObservationType.wing:
                 try:
                     self.observations.append(Wing(file))
                 except Exception as ex:
                     self.observations.clear()
-                    resp.body = json.dumps({
-                        "Erro": "O arquivo não existe no caminho especificado.",
-                        "Detalhes": ex.__str__()
-                    })
-                    resp.status = falcon.HTTP_NOT_FOUND
-                    return
+                    raise exc.InternalError(
+                        title="Erro de Dataframe",
+                        description=f"Não foi possível gerar os dados para o experimento: {ex.__str__()}",
+                    )
             elif file.file_type == ObservationType.hanging:
                 try:
                     self.observations.append(Hanging(file))
                 except Exception as ex:
                     self.observations.clear()
-                    resp.body = json.dumps({
-                        "Erro": "O arquivo não existe no caminho especificado.",
-                        "Detalhes": ex.__str__()
-                    })
-                    resp.status = falcon.HTTP_NOT_FOUND
-                    return
-        resp.body = json.dumps({"Sucesso": f"Foram criados {len(self.observations)} experimentos"})
+                    raise exc.InternalError(
+                        title="Erro de Dataframe",
+                        description=f"Não foi possível gerar os dados para o experimento: {ex.__str__()}",
+                    )
+        resp.text = json.dumps(
+            {"Sucesso": f"Foram criados {len(self.observations)} experimentos"}
+        )
         resp.status = falcon.HTTP_CREATED

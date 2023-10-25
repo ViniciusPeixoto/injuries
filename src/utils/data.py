@@ -8,11 +8,7 @@ FILENAME_PATTERN = r"\n(\w+?)\t(\d+-\d+-\d+)\t(\d+:\d+:\d+:\d+)\t"
 
 # VARIABLES
 columns = ["hum thor elev DIR", "hum thor elev ESQ", "scap ur DIR", "scap ur ESQ"]
-units = {
-    "angle": "°",
-    "angvel_deg": "°/s",
-    "angvel_rad": "rad/s"
-}
+units = {"angle": "°", "angvel_deg": "°/s", "angvel_rad": "rad/s"}
 
 
 class ObservationType(Enum):

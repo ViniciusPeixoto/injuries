@@ -1,8 +1,8 @@
 import falcon
 from falcon_cors import CORS
 
-from src.resources.upload import UploadResource
 from src.resources.observation import ObservationResource
+from src.resources.upload import UploadResource
 
 
 def create_routes(app: falcon.App):
