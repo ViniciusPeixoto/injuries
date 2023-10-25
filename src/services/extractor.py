@@ -18,10 +18,10 @@ class FileHandler:
         match_filename = re.search(FILENAME_PATTERN, raw_file)
         if match_filename:
             file_name = match_filename.group(1)
-            file_path = os.path.join("files/", file_name)
+            file_path = os.path.join("files/", file_name + ".exp")
             if os.path.exists(file_path):
                 raise FileExistsError
-        return self.file_factory.build_file(file_path, raw_file)
+            return self.file_factory.build_file(file_path, raw_file)
 
     def save_file(self, file_path: str, file_data: str):
         if not file_data:

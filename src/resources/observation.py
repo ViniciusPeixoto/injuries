@@ -5,7 +5,7 @@ import falcon
 
 from src.services.extractor import FileHandler
 from src.services.analyzer import Observation, Wing, Hanging
-from src.utils.data import ObservationType
+from src.utils.data import ObservationType, units
 
 
 class ObservationResource:
@@ -26,10 +26,12 @@ class ObservationResource:
         body = {}
         for observation in self.observations:
             indexes = observation.angle.index.tolist()
-            values = getattr(observation, subject)[column].values.flatten().tolist()
+            df = getattr(observation, subject)[column]
+            frame_max = df.idxmax()
+            val_max = df.loc[frame_max]
             body[observation.name] = {
-                "data": [list(pair) for pair in zip(indexes, values)],
-                "extra": {}
+                "data": [list(pair) for pair in zip(indexes, df.values.flatten().tolist())],
+                "extra": {"val_max": f"{round(val_max, 2)} {units[subject]}", "frame": str(frame_max-50)}
              }
         resp.body = json.dumps(body)
         resp.status = falcon.HTTP_OK
