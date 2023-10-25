@@ -31,7 +31,7 @@ class ObservationResource:
             val_max = df.loc[frame_max]
             body[observation.name] = {
                 "data": [list(pair) for pair in zip(indexes, df.values.flatten().tolist())],
-                "extra": {"val_max": f"{round(val_max, 2)} {units[subject]}", "frame": str(frame_max-50)}
+                "extra": {"val_max": f"{round(val_max, 2)} {units[subject]}", "frame": str(frame_max)}
              }
         resp.body = json.dumps(body)
         resp.status = falcon.HTTP_OK

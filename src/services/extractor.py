@@ -61,6 +61,9 @@ class FileHandler:
 
         return self.file_factory.build_file(file_path, file_data)
 
+    def get_files(self):
+        return [file for file in os.listdir("files/") if os.path.isfile(os.path.join("files/", file))]
+
     def get_data(self, file_path: str) -> DataFrame:
         """
         Returns a Pandas DataFrame from a `.exp` file.

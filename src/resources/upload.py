@@ -41,3 +41,18 @@ class UploadResource:
             "Arquivos": saved_files
         })
         resp.status = falcon.HTTP_CREATED
+
+    def on_get(self, req: falcon.Request, resp: falcon.Response):
+        files = self.file_handler.get_files()
+
+        if files:
+            resp.body = json.dumps({
+                "Sucesso": "Há arquivos salvos.",
+                "Arquivos": files
+            })
+            resp.status = falcon.HTTP_OK
+        else:
+            resp.body = json.dumps({
+                "Erro": "Não há arquivos salvos."
+            })
+            resp.status = falcon.HTTP_FOUND
