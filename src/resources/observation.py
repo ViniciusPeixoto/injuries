@@ -27,6 +27,7 @@ class ObservationResource:
         body = {}
         for observation in self.observations:
             indexes = observation.angle.index.tolist()
+            angles = observation.angle[column]
             try:
                 df = getattr(observation, subject)[column]
             except ValueError:
@@ -38,14 +39,14 @@ class ObservationResource:
                     title="Erro de Dataframe",
                     description=f"Dataframe não possui coluna {column}.",
                 )
-            frame_max = df.idxmax()
+            frame_max = angles.idxmax()
             val_max = df.loc[frame_max]
             body[observation.name] = {
                 "data": [
                     list(pair) for pair in zip(indexes, df.values.flatten().tolist())
                 ],
                 "extra": {
-                    "val_max": f"{round(val_max, 2)} {units[subject]}",
+                    "val_max": f"{round(val_max, 3)} {units[subject]}",
                     "frame": str(frame_max),
                 },
             }

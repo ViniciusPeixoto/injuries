@@ -23,26 +23,20 @@ class Observation:
         )
         self.angvel_deg = (
             self.angle.diff()
-            .rolling(window=MEASUREMENT_BINS, center=True)
-            .mean()
             .dropna()
         ) / MEASUREMENT_RATE
         self.angvel_rad = (
             angle_to_rad(
                 self.angle.diff()
-                .rolling(window=MEASUREMENT_BINS, center=True)
-                .mean()
                 .dropna()
             )
             / MEASUREMENT_RATE
         )
-        # self.angaccel_rad = (
-        #     self.angvel_rad.diff()
-        #     .dropna()
-        #     .rolling(window=MEASUREMENT_BINS, center=True)
-        #     .mean()
-        #     / MEASUREMENT_RATE
-        # )
+        self.angaccel_rad = (
+            self.angvel_rad.diff()
+            .dropna()
+            / MEASUREMENT_RATE
+        )
 
 
 class Hanging(Observation):
