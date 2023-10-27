@@ -1,8 +1,12 @@
 import falcon
 from falcon_cors import CORS
+from dotenv import load_dotenv
 
 from src.resources.observation import ObservationResource
 from src.resources.upload import UploadResource
+
+
+load_dotenv()
 
 
 def create_routes(app: falcon.App):

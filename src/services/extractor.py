@@ -1,21 +1,56 @@
-import os
 import re
 
+from google.cloud import storage
 from pandas import DataFrame, read_csv
 
 from src.utils.data import FILENAME_PATTERN, HEADER_SIZE, ObservationType
 from src.utils.factory import FileFactory
 
 
+class GCloudStorage:
+    def __init__(self) -> None:
+        self.client = storage.Client(project="injuries-backend")
+        self.bucket_name = "injuries-backend.appspot.com"
+        self.bucket = self.client.bucket(self.bucket_name)
+
+    def write(self, path, data):
+        blob = self.bucket.blob(path)
+        with blob.open('w') as f:
+            f.write(data)
+
+    def read(self, path):
+        blob = self.bucket.blob(path)
+        data = None
+        with blob.open('r') as f:
+            data = f.read()
+
+        return data
+
+    def list(self):
+        files = self.client.list_blobs(self.bucket_name)
+        files = [file.name for file in files]
+        return files
+
+    def clear(self):
+        files = self.list()
+        geneartion_match_precondition = None
+        for file in files:
+            blob = self.bucket.blob(f"{file}")
+            blob.reload()
+            geneartion_match_precondition = blob.generation
+            blob.delete(if_generation_match=geneartion_match_precondition)
+
+
 class FileHandler:
     file_factory = FileFactory()
+    file_storage = GCloudStorage()
 
     def extract_file(self, raw_file: str):
         match_filename = re.search(FILENAME_PATTERN, raw_file)
         if match_filename:
             file_name = match_filename.group(1)
-            file_path = os.path.join("files/", file_name + ".exp")
-            if os.path.exists(file_path):
+            file_path = f"{file_name}.exp"
+            if file_path in self.file_storage.list():
                 raise FileExistsError
             return self.file_factory.build_file(file_path, raw_file)
 
@@ -23,23 +58,14 @@ class FileHandler:
         if not file_data:
             raise ValueError("Missing data.")
 
-        with open(file_path, "w") as f:
-            try:
-                f.write(file_data)
-            except Exception as ex:
-                raise ex
+        try:
+            self.file_storage.write(file_path, file_data)
+        except Exception as ex:
+            raise ex
 
     def clear_files(self):
-        path = "files/"
         try:
-            files = os.listdir(path)
-            for file in files:
-                file_path = os.path.join(path, file)
-                try:
-                    if os.path.isfile(file_path):
-                        os.remove(file_path)
-                except Exception as ex:
-                    raise ex("An error ocurred.")
+            self.file_storage.clear()
         except FileNotFoundError:
             raise FileNotFoundError("Missing file.")
         except PermissionError:
@@ -48,27 +74,27 @@ class FileHandler:
             raise ex("An error ocurred.")
 
     def get_file(self, file_name: str):
-        file_path = f"files/{file_name}"
+        file_path = f"{file_name}"
         try:
-            with open(file_path, "r") as file:
-                file_data = file.read()
-        except FileNotFoundError:
+            file_data = self.file_storage.read(file_path)
+        except Exception:
             raise FileNotFoundError(f"No file with name {file_name}.")
 
         return self.file_factory.build_file(file_path, file_data)
 
     def get_files(self):
-        return [
-            file
-            for file in os.listdir("files/")
-            if os.path.isfile(os.path.join("files/", file))
-        ]
+        return self.file_storage.list()
 
-    def get_data(self, file_path: str) -> DataFrame:
+    def get_data(self, file_name: str) -> DataFrame:
         """
         Returns a Pandas DataFrame from a `.exp` file.
         """
-        return read_csv(file_path, sep="\t", skiprows=[x for x in range(HEADER_SIZE)])
+        file_path = f"gs://{self.file_storage.bucket_name}/{file_name}"
+        try:
+            df = read_csv(file_path, sep="\t", skiprows=[x for x in range(HEADER_SIZE)])
+        except Exception as ex:
+            raise ex
+        return df
 
 
 class File:
