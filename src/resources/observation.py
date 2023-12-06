@@ -26,6 +26,7 @@ class ObservationResource:
 
         body = {}
         for observation in self.observations:
+            threshold = 60 if isinstance(observation, Hanging) else 25
             indexes = observation.angle.index.tolist()
             angles = observation.angle[column]
             try:
@@ -39,15 +40,21 @@ class ObservationResource:
                     title="Erro de Dataframe",
                     description=f"Dataframe não possui coluna {column}.",
                 )
-            frame_max = angles.idxmax()
+            frames_max = df.sort_values(ascending=False).index.tolist()
+            frame_max = frames_max[0]
+            for frame in frames_max:
+                if angles.loc[frame] > threshold:
+                    frame_max = frame
+                    break
             val_max = df.loc[frame_max]
+            angle = angles.loc[frame_max]
             body[observation.name] = {
                 "data": [
                     list(pair) for pair in zip(indexes, df.values.flatten().tolist())
                 ],
                 "extra": {
                     "val_max": f"{round(val_max, 3)} {units[subject]}",
-                    "frame": str(frame_max),
+                    "angle": f"{round(angle, 3)} °",
                 },
             }
         resp.text = json.dumps(body)

@@ -10,7 +10,7 @@ class Observation:
     angle: pd.DataFrame
     angvel_deg: pd.DataFrame
     angvel_rad: pd.DataFrame
-    angaccel_rad: pd.DataFrame
+    angaccel_deg: pd.DataFrame
 
     def __init__(self, file: File) -> None:
         self.name = file.file_name
@@ -32,8 +32,8 @@ class Observation:
             )
             / MEASUREMENT_RATE
         )
-        self.angaccel_rad = (
-            self.angvel_rad.diff()
+        self.angaccel_deg = (
+            self.angvel_deg.diff()
             .dropna()
             / MEASUREMENT_RATE
         )
